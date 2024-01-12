@@ -2,7 +2,7 @@
 - name: Verify snapshots are completed
   ansible.builtin.script: "{{ __cmd }}"
   args:
-    executable: "{{ ansible_python.executable }}"
+    executable: "{{ __snapshot_python }}"
   register: snapshot_cmd
   vars:
     __cmd: "{{ 'snapshot.py check ' ~

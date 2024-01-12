@@ -3,6 +3,8 @@
 
 __snapshot_packages: ["lvm2"]
 __snapshot_services: []
+# python to use on managed nodes for snapshot.py
+__snapshot_python: /usr/bin/python3
 # ansible_facts required by the role
 __snapshot_required_facts:
   - distribution
