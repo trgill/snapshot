@@ -34,6 +34,9 @@
         snapshot_lvm_lv: "{{
           __snapshot_failed_params.get('snapshot_lvm_lv')
           }}"
+        snapshot_lvm_set: "{{
+          __snapshot_failed_params.get('__snapshot_lvm_set')
+          }}"
     - name: Unreachable task
       fail:
         msg: UNREACH

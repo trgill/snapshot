@@ -1,13 +1,12 @@
 ---
-- name: Verify snapshots are completed
+- name: Snapshot VG/LVs
   ansible.builtin.script: "{{ __cmd }}"
   args:
     executable: "{{ __snapshot_python }}"
   register: snapshot_cmd
   vars:
-    __cmd: "{{ 'snapshot.py check ' ~
+    __cmd: "{{ 'snapshot.py snapshot ' ~
       ('-a ' if snapshot_lvm_all_vgs else '') ~
-      ('-v ' if snapshot_lvm_verify_only else '')
       ('-r ' if snapshot_lvm_percent_space_required else '') ~ ' ' ~
       (snapshot_lvm_percent_space_required | quote
         if snapshot_lvm_percent_space_required else '') ~ ' ' ~

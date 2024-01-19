@@ -1,12 +1,11 @@
-# SPDX-License-Identifier: MIT
 ---
-- name: Remove snapshots from previous runs
+- name: Check snapshots will work or are completed (verify)
   ansible.builtin.script: "{{ __cmd }}"
   args:
     executable: "{{ __snapshot_python }}"
   register: snapshot_cmd
   vars:
-    __cmd: "{{ 'snapshot.py clean ' ~
+    __cmd: "{{ 'snapshot.py check ' ~
       ('-a ' if snapshot_lvm_all_vgs else '') ~
       ('-r ' if snapshot_lvm_percent_space_required != '' else '') ~ ' ' ~
       (snapshot_lvm_percent_space_required | quote
