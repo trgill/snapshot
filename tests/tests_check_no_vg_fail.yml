@@ -30,7 +30,7 @@
     - name: Test failure of check for incorrect VG
       include_tasks: verify-role-failed.yml
       vars:
-        __snapshot_failed_regex: source volume group does not exist
+        __snapshot_failed_regex: "source volume group does not exist:*"
         __snapshot_failed_msg: Role check did not fail with wrong VG
         __snapshot_failed_params:
           snapshot_lvm_vg: xxxxxx
