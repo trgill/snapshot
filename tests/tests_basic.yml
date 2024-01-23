@@ -54,7 +54,7 @@
         name: linux-system-roles.snapshot
       vars:
         snapshot_lvm_percent_space_required: 15
-        snapshot_all: true
+        snapshot_lvm_all_vgs: true
         snapshot_lvm_suffix: _z
         snapshot_lvm_prefix: a_
         snapshot_lvm_action: snapshot
@@ -63,6 +63,7 @@
       include_role:
         name: linux-system-roles.snapshot
       vars:
+        snapshot_lvm_all_vgs: true
         snapshot_lvm_suffix: _z
         snapshot_lvm_prefix: a_
         snapshot_lvm_verify_only: true

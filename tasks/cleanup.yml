@@ -1,29 +1,7 @@
 # SPDX-License-Identifier: MIT
 ---
 - name: Remove snapshots from previous runs
-  ansible.builtin.script: "{{ __cmd }}"
+  ansible.builtin.script: "{{ __snapshot_cmd }}"
   args:
     executable: "{{ __snapshot_python }}"
   register: snapshot_cmd
-  vars:
-    __cmd: "{{ 'snapshot.py clean ' ~
-      ('-a ' if snapshot_lvm_all_vgs else '') ~
-      ('-r ' if snapshot_lvm_percent_space_required != '' else '') ~ ' ' ~
-      (snapshot_lvm_percent_space_required | quote
-        if snapshot_lvm_percent_space_required != '' else '') ~ ' ' ~
-      ('-p ' if snapshot_lvm_prefix != '' else '') ~ ' ' ~
-      (snapshot_lvm_prefix | quote
-        if snapshot_lvm_prefix != '' else '') ~ ' ' ~
-      ('-vg ' if snapshot_lvm_vg != '' else '') ~ ' ' ~
-      (snapshot_lvm_vg | quote
-        if snapshot_lvm_vg != '' else '') ~ ' ' ~
-      ('-lv ' if snapshot_lvm_lv != '' else '') ~ ' ' ~
-      (snapshot_lvm_lv | quote
-        if snapshot_lvm_lv != '' else '') ~ ' ' ~
-      ('-s ' if snapshot_lvm_suffix != '' else '') ~ ' ' ~
-      (snapshot_lvm_suffix | quote
-        if snapshot_lvm_suffix != '' else '') ~ ' ' ~
-      ('-g ' if snapshot_lvm_set != '' else '') ~ ' ' ~
-      (snapshot_lvm_set | to_json | quote
-        if snapshot_lvm_set != '' else '')}}"
-  failed_when: snapshot_cmd.rc != 0
