@@ -1067,7 +1067,7 @@ def get_required_space(required_space_str):
         if percent_space_required <= 1:
             return (
                 SnapshotStatus.ERROR_INVALID_PERCENT_REQUESTED,
-                "percent_space_required must be greater than or equal to 1: "
+                "percent_space_required must be greater than 1: "
                 + str(required_space_str),
                 0,
             )

@@ -2,57 +2,62 @@
 - name: Verify the check commmand fails when source LV doesn't exist
   hosts: all
   tasks:
-    - name: Run the storage role to create test LVs
-      include_role:
-        name: fedora.linux_system_roles.storage
+    - name: Run tests
+      block:
+        - name: Run the storage role to create test LVs
+          include_role:
+            name: fedora.linux_system_roles.storage
 
-    - name: Get unused disks
-      include_tasks: get_unused_disk.yml
-      vars:
-        min_size: "1g"
-        min_return: 10
+        - name: Get unused disks
+          include_tasks: get_unused_disk.yml
+          vars:
+            min_size: "1g"
+            min_return: 10
 
-    - name: Set disk list
-      set_fact:
-        disk_list_1: "{{ range(0, 3) | map('extract', unused_disks) | list }}"
+        - name: Set disk list
+          set_fact:
+            disk_list_1: "{{ range(0, 3) | map('extract', unused_disks) |
+              list }}"
 
-    - name: Create LVM logical volumes under volume group
-      include_role:
-        name: fedora.linux_system_roles.storage
-      vars:
-        storage_pools:
-          - name: test_vg1
-            disks: "{{ disk_list_1 }}"
-            volumes:
-              - name: lv1
-                size: "50%"
+        - name: Create LVM logical volumes under volume group
+          include_role:
+            name: fedora.linux_system_roles.storage
+          vars:
+            storage_pools:
+              - name: test_vg1
+                disks: "{{ disk_list_1 }}"
+                volumes:
+                  - name: lv1
+                    size: "50%"
 
-    - name: Test failure of check with verify set for incorrect LV
-      include_tasks: verify-role-failed.yml
-      vars:
-        percent_space_required: 15
-        __snapshot_failed_regex: "source logical volume in snapset does not*"
-        __snapshot_failed_msg: Role check did not fail with incorrect LV name
-        __snapshot_failed_params:
-          snapshot_lvm_action: check
-          snapshot_lvm_verify_only: true
-          __snapshot_lvm_set:
-            name: snapset1
-            volumes:
-              - name: snapshot VG1 LV1
-                vg: test_vg1
-                lv: xxxxx
-                percent_space_required: 20
-
-    - name: Clean up storage volumes
-      include_role:
-        name: fedora.linux_system_roles.storage
-      vars:
-        storage_safe_mode: false
-        storage_pools:
-          - name: test_vg1
-            disks: "{{ disk_list_1 }}"
-            state: absent
-            volumes:
-              - name: lv1
+        - name: Test failure of check with verify set for incorrect LV
+          include_tasks: verify-role-failed.yml
+          vars:
+            percent_space_required: 15
+            __snapshot_failed_regex: >-
+              source logical volume in snapset does not*
+            __snapshot_failed_msg: >-
+              Role check did not fail with incorrect LV name
+            __snapshot_failed_params:
+              snapshot_lvm_action: check
+              snapshot_lvm_verify_only: true
+              __snapshot_lvm_set:
+                name: snapset1
+                volumes:
+                  - name: snapshot VG1 LV1
+                    vg: test_vg1
+                    lv: xxxxx
+                    percent_space_required: 20
+      always:
+        - name: Clean up storage volumes
+          include_role:
+            name: fedora.linux_system_roles.storage
+          vars:
+            storage_safe_mode: false
+            storage_pools:
+              - name: test_vg1
+                disks: "{{ disk_list_1 }}"
                 state: absent
+                volumes:
+                  - name: lv1
+                    state: absent
