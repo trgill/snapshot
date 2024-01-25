@@ -1436,15 +1436,9 @@ if __name__ == "__main__":
     os.environ["LC_ALL"] = "C"
     os.environ["LVM_COMMAND_PROFILE"] = "lvmdbusd"
 
-    parser = argparse.ArgumentParser(description="Snapshot Operations")
-
-    # sub-parsers
-    subparsers = parser.add_subparsers(dest="operation", help="Available operations")
-
-    # sub-parser for 'snapshot'
-    snapshot_parser = subparsers.add_parser("snapshot", help="Snapshot given VG/LVs")
-    snapshot_parser.set_defaults(func=snapshot_cmd)
-    snapshot_parser.add_argument(
+    # arguments common to all operations
+    common_parser = argparse.ArgumentParser(add_help=False)
+    common_parser.add_argument(
         "-g",
         "--group",
         nargs="?",
@@ -1453,7 +1447,7 @@ if __name__ == "__main__":
         default=None,
         dest="set_json",
     )
-    snapshot_parser.add_argument(
+    common_parser.add_argument(
         "-a",
         "--all",
         action="store_true",
@@ -1461,7 +1455,7 @@ if __name__ == "__main__":
         dest="all",
         help="snapshot all VGs and LVs",
     )
-    snapshot_parser.add_argument(
+    common_parser.add_argument(
         "-vg",
         "--volumegroup",
         nargs="?",
@@ -1470,7 +1464,7 @@ if __name__ == "__main__":
         dest="volume_group",
         help="volume group to snapshot",
     )
-    snapshot_parser.add_argument(
+    common_parser.add_argument(
         "-lv",
         "--logicalvolume",
         nargs="?",
@@ -1479,8 +1473,36 @@ if __name__ == "__main__":
         dest="logical_volume",
         help="logical volume to snapshot",
     )
+    common_parser.add_argument(
+        "-s",
+        "--suffix",
+        dest="suffix",
+        type=str,
+        help="suffix to add to volume name for snapshot",
+    )
+    common_parser.add_argument(
+        "-p",
+        "--prefix",
+        dest="prefix",
+        type=str,
+        help="prefix to add to volume name for snapshot",
+    )
+
+    # arguments for operations that do verify
+    verify_parser = argparse.ArgumentParser(add_help=False)
+    verify_parser.add_argument(
+        "-v",
+        "--verify",
+        action="store_true",
+        default=False,
+        dest="verify",
+        help="verify VGs and LVs have snapshots",
+    )
+
+    # arguments for operations that deal with required space
+    req_space_parser = argparse.ArgumentParser(add_help=False)
     # TODO: range check required space - setting choices to a range makes the help ugly.
-    snapshot_parser.add_argument(
+    req_space_parser.add_argument(
         "-r",
         "--requiredspace",
         dest="required_space",
@@ -1489,211 +1511,37 @@ if __name__ == "__main__":
         default=20,
         help="percent of required space in the volume group to be reserved for snapshot",
     )
-    snapshot_parser.add_argument(
-        "-s",
-        "--suffix",
-        dest="suffix",
-        type=str,
-        help="suffix to add to volume name for snapshot",
+
+    parser = argparse.ArgumentParser(description="Snapshot Operations")
+
+    # sub-parsers
+    subparsers = parser.add_subparsers(dest="operation", help="Available operations")
+
+    # sub-parser for 'snapshot'
+    snapshot_parser = subparsers.add_parser(
+        "snapshot",
+        help="Snapshot given VG/LVs",
+        parents=[common_parser, req_space_parser],
     )
-    snapshot_parser.add_argument(
-        "-p",
-        "--prefix",
-        dest="prefix",
-        type=str,
-        help="prefix to add to volume name for snapshot",
-    )
+    snapshot_parser.set_defaults(func=snapshot_cmd)
 
     # sub-parser for 'check'
-    check_parser = subparsers.add_parser("check", help="Check space for given VG/LV")
-    check_parser.add_argument(
-        "-g",
-        "--group",
-        nargs="?",
-        action="store",
-        required=False,
-        default=None,
-        dest="set_json",
-    )
-    check_parser.add_argument(
-        "-a",
-        "--all",
-        action="store_true",
-        default=False,
-        dest="all",
-        help="check all VGs and LVs",
-    )
-    check_parser.add_argument(
-        "-v",
-        "--verify",
-        action="store_true",
-        default=False,
-        dest="verify",
-        help="verify VGs and LVs have snapshots",
-    )
-    check_parser.add_argument(
-        "-vg",
-        "--volumegroup",
-        nargs="?",
-        action="store",
-        default=None,
-        dest="volume_group",
-        help="volume group to check",
-    )
-    check_parser.add_argument(
-        "-lv",
-        "--logicalvolume",
-        nargs="?",
-        action="store",
-        default=None,
-        dest="logical_volume",
-        help="logical volume to check",
-    )
-    # TODO: range check required space - setting choices to a range makes the help ugly.
-    check_parser.add_argument(
-        "-r",
-        "--requiredspace",
-        dest="required_space",
-        default=20,
-        required=False,
-        type=int,  # choices=range(10,100),
-        help="percent of required space in the volume group to be reserved for check",
-    )
-    check_parser.add_argument(
-        "-s",
-        "--suffix",
-        dest="suffix",
-        type=str,
-        help="suffix to add to volume name for check - will verify no name conflicts",
-    )
-    check_parser.add_argument(
-        "-p",
-        "--prefix",
-        dest="prefix",
-        type=str,
-        help="prefix to add to volume name for check - will verify no name conflicts",
+    check_parser = subparsers.add_parser(
+        "check",
+        help="Check space for given VG/LV",
+        parents=[common_parser, req_space_parser, verify_parser],
     )
     check_parser.set_defaults(func=check_cmd)
 
     # sub-parser for 'clean'
-    clean_parser = subparsers.add_parser("clean", help="Cleanup snapshots")
-    clean_parser.add_argument(
-        "-g",
-        "--group",
-        nargs="?",
-        action="store",
-        required=False,
-        default=None,
-        dest="set_json",
-    )
-    clean_parser.add_argument(
-        "-a",
-        "--all",
-        action="store_true",
-        default=False,
-        dest="all",
-        help="clean all VGs and LVs",
-    )
-    clean_parser.add_argument(
-        "-v",
-        "--verify",
-        action="store_true",
-        default=False,
-        dest="verify",
-        help="verify VG and LV snapshots have been cleaned",
-    )
-    clean_parser.add_argument(
-        "-vg",
-        "--volumegroup",
-        nargs="?",
-        action="store",
-        default=None,
-        dest="volume_group",
-        help="volume group to cleanup/remove",
-    )
-    clean_parser.add_argument(
-        "-lv",
-        "--logicalvolume",
-        nargs="?",
-        action="store",
-        default=None,
-        dest="logical_volume",
-        help="logical volume to cleanup/remove",
-    )
-    clean_parser.add_argument(
-        "-s",
-        "--suffix",
-        dest="suffix",
-        type=str,
-        help="suffix to add to volume name for cleanup/remove",
-    )
-    clean_parser.add_argument(
-        "-p",
-        "--prefix",
-        dest="prefix",
-        type=str,
-        help="prefix to add to volume name for cleanup/remove",
+    clean_parser = subparsers.add_parser(
+        "clean", help="Cleanup snapshots", parents=[common_parser, verify_parser]
     )
     clean_parser.set_defaults(func=clean_cmd)
 
     # sub-parser for 'revert'
-    revert_parser = subparsers.add_parser("revert", help="Revert to snapshots")
-    revert_parser.add_argument(
-        "-g",
-        "--group",
-        nargs="?",
-        action="store",
-        required=False,
-        default=None,
-        dest="set_json",
-    )
-    revert_parser.add_argument(
-        "-a",
-        "--all",
-        action="store_true",
-        default=False,
-        dest="all",
-        help="revert all VGs and LVs",
-    )
-    revert_parser.add_argument(
-        "-v",
-        "--verify",
-        action="store_true",
-        default=False,
-        dest="verify",
-        help="verify VG and LV snapshots have been reverted",
-    )
-    revert_parser.add_argument(
-        "-vg",
-        "--volumegroup",
-        nargs="?",
-        action="store",
-        default=None,
-        dest="volume_group",
-        help="volume group to revertup/remove",
-    )
-    revert_parser.add_argument(
-        "-lv",
-        "--logicalvolume",
-        nargs="?",
-        action="store",
-        default=None,
-        dest="logical_volume",
-        help="logical volume to revertup/remove",
-    )
-    revert_parser.add_argument(
-        "-s",
-        "--suffix",
-        dest="suffix",
-        type=str,
-        help="suffix to add to volume name for revertup/remove",
-    )
-    revert_parser.add_argument(
-        "-p",
-        "--prefix",
-        dest="prefix",
-        type=str,
-        help="prefix to add to volume name for revertup/remove",
+    revert_parser = subparsers.add_parser(
+        "revert", help="Revert to snapshots", parents=[common_parser, verify_parser]
     )
     revert_parser.set_defaults(func=revert_cmd)
 
