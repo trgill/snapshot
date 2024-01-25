@@ -149,8 +149,7 @@ def check_positive(value):
             )
     except ValueError:
         raise Exception(
-            "{0:04x} is not an integer, it is type {1}".format(
-                value, value.__class__)
+            "{0:04x} is not an integer, it is type {1}".format(value, value.__class__)
         )
     return value
 
@@ -252,8 +251,7 @@ def lvm_is_owned(lv_name, prefix, suffix):
 
 
 def lvm_is_snapshot(vg_name, snapshot_name):
-    lvs_command = ["lvs", "--reportformat",
-                   "json", vg_name + "/" + snapshot_name]
+    lvs_command = ["lvs", "--reportformat", "json", vg_name + "/" + snapshot_name]
 
     rc, output = run_command(lvs_command)
 
@@ -488,8 +486,7 @@ def check_lvs(required_space, vg_name, lv_name, prefix, suffix):
             if lv_name and lvs["lv_name"] != lv_name:
                 continue
 
-            rc, message = check_name_for_snapshot(
-                lvs["lv_name"], prefix, suffix)
+            rc, message = check_name_for_snapshot(lvs["lv_name"], prefix, suffix)
             if rc != SnapshotStatus.SNAPSHOT_OK:
                 return rc, message
 
@@ -521,8 +518,7 @@ def check_verify_lvs_set(snapset_json):
         vg = list_item["vg"]
         lv = list_item["lv"]
 
-        snapshot_name = get_snapshot_name(
-            lv, None, get_snapset_suffix(snapset_name))
+        snapshot_name = get_snapshot_name(lv, None, get_snapset_suffix(snapset_name))
 
         rc, _vg_exists, lv_exists = lvm_lv_exists(vg, snapshot_name)
         if rc != SnapshotStatus.SNAPSHOT_OK:
@@ -590,8 +586,7 @@ def check_verify_lvs_completed(snapshot_all, vg_name, lv_name, prefix, suffix):
 
             snapshot_name = get_snapshot_name(lvs["lv_name"], prefix, suffix)
 
-            rc, _vg_exists, lv_exists = lvm_lv_exists(
-                verify_vg_name, snapshot_name)
+            rc, _vg_exists, lv_exists = lvm_lv_exists(verify_vg_name, snapshot_name)
             if rc != SnapshotStatus.SNAPSHOT_OK:
                 return (
                     SnapshotStatus.ERROR_VERIFY_COMMAND_FAILED,
@@ -599,8 +594,7 @@ def check_verify_lvs_completed(snapshot_all, vg_name, lv_name, prefix, suffix):
                 )
 
             if lv_exists:
-                rc, is_snapshot = lvm_is_snapshot(
-                    verify_vg_name, snapshot_name)
+                rc, is_snapshot = lvm_is_snapshot(verify_vg_name, snapshot_name)
                 if rc != SnapshotStatus.SNAPSHOT_OK:
                     return (
                         SnapshotStatus.ERROR_VERIFY_COMMAND_FAILED,
@@ -659,8 +653,7 @@ def clean_snapshot_set(snapset_json):
         vg = list_item["vg"]
         lv = list_item["lv"]
 
-        snapshot_name = get_snapshot_name(
-            lv, None, get_snapset_suffix(snapset_name))
+        snapshot_name = get_snapshot_name(lv, None, get_snapset_suffix(snapset_name))
 
         rc, vg_exists, lv_exists = lvm_lv_exists(vg, snapshot_name)
 
@@ -688,8 +681,7 @@ def clean_verify_snapshot_set(snapset_json):
         vg = list_item["vg"]
         lv = list_item["lv"]
 
-        snapshot_name = get_snapshot_name(
-            lv, None, get_snapset_suffix(snapset_name))
+        snapshot_name = get_snapshot_name(lv, None, get_snapset_suffix(snapset_name))
 
         rc, _vg_exists, lv_exists = lvm_lv_exists(vg, snapshot_name)
         if rc != SnapshotStatus.SNAPSHOT_OK:
@@ -795,8 +787,7 @@ def clean_verify_snapshots(vg_name, lv_name, prefix, suffix):
 
             snapshot_name = get_snapshot_name(lvs["lv_name"], prefix, suffix)
 
-            rc, _vg_exists, lv_exists = lvm_lv_exists(
-                verify_vg_name, snapshot_name)
+            rc, _vg_exists, lv_exists = lvm_lv_exists(verify_vg_name, snapshot_name)
 
             if lv_exists:
                 return (
@@ -892,8 +883,7 @@ def verify_snapset_target_no_existing(snapset_json):
         vg = list_item["vg"]
         lv = list_item["lv"]
 
-        snapshot_name = get_snapshot_name(
-            lv, None, get_snapset_suffix(snapset_name))
+        snapshot_name = get_snapshot_name(lv, None, get_snapset_suffix(snapset_name))
 
         rc, _vg_exists, lv_exists = lvm_lv_exists(vg, snapshot_name)
         if rc != SnapshotStatus.SNAPSHOT_OK:
@@ -1349,8 +1339,7 @@ def check_cmd(args):
         if args.verify:
             rc, message = check_verify_lvs_set(snapset_json)
         else:
-            rc, message, _current_space_dict = snapshot_precheck_lv_set(
-                snapset_json)
+            rc, message, _current_space_dict = snapshot_precheck_lv_set(snapset_json)
 
     return rc, message
 
@@ -1450,12 +1439,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Snapshot Operations")
 
     # sub-parsers
-    subparsers = parser.add_subparsers(
-        dest="operation", help="Available operations")
+    subparsers = parser.add_subparsers(dest="operation", help="Available operations")
 
     # sub-parser for 'snapshot'
-    snapshot_parser = subparsers.add_parser(
-        "snapshot", help="Snapshot given VG/LVs")
+    snapshot_parser = subparsers.add_parser("snapshot", help="Snapshot given VG/LVs")
     snapshot_parser.set_defaults(func=snapshot_cmd)
     snapshot_parser.add_argument(
         "-g",
@@ -1518,8 +1505,7 @@ if __name__ == "__main__":
     )
 
     # sub-parser for 'check'
-    check_parser = subparsers.add_parser(
-        "check", help="Check space for given VG/LV")
+    check_parser = subparsers.add_parser("check", help="Check space for given VG/LV")
     check_parser.add_argument(
         "-g",
         "--group",
