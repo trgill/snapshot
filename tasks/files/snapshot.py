@@ -659,7 +659,16 @@ def clean_snapshot_set(snapset_json):
         vg = list_item["vg"]
         lv = list_item["lv"]
 
-        snapshot_name = get_snapshot_name(lv, None, get_snapset_suffix(snapset_name))
+        snapshot_name = get_snapshot_name(
+            lv, None, get_snapset_suffix(snapset_name))
+
+        rc, vg_exists, lv_exists = lvm_lv_exists(vg, snapshot_name)
+
+        if not vg_exists or not lv_exists:
+            continue
+
+        if rc != SnapshotStatus.SNAPSHOT_OK:
+            return rc, "failed to get LV status"
 
         rc, message = lvm_snapshot_remove(vg, snapshot_name)
 
