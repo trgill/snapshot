@@ -100,6 +100,12 @@ options:
             When set to true, and passed to the 'snapshot' command, the snapshot created will have
             a corresponding boot entry.  The boot entry will be removed when the snapset is removed.
         type: bool
+    snapshot_lvm_revert_boot_menu:
+        description: Only supported on operating systems that support snapshot manager (snapm).
+            When set to true, and passed to the 'snapshot' command, the snapshot created will have
+            a corresponding revert boot entry.  The boot entry will be removed when the snapset is 
+            removed.
+        type: bool
     snapshot_lvm_set:
         description: set of volumes
         type: dict

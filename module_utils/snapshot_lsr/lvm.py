@@ -86,6 +86,11 @@ def get_json_from_args(module, module_args, vg_include):
     else:
         args_dict["bootable"] = False
 
+    if module_args["snapshot_lvm_revert_boot_menu"]:
+        args_dict["snapshot_lvm_revert_boot_menu"] = module_args["snapshot_lvm_revert_boot_menu"]
+    else:
+        args_dict["snapshot_lvm_revert_boot_menu"] = False
+
     for vg, lv_list in vgs_lvs_iterator(
         module,
         module_args["snapshot_lvm_vg"],

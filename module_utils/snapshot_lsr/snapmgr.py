@@ -205,6 +205,11 @@ def mgr_snapshot_cmd(module, module_args, snapset_json):
     else:
         bootable = False
 
+    if "snapshot_lvm_revert_boot_menu" in snapset_json:
+        revert_menu = snapset_json["snapshot_lvm_revert_boot_menu"]
+    else:
+        revert_menu = False
+
     source_list = mgr_get_source_list_for_create(volume_list)
 
     if check_mode:
@@ -218,6 +223,7 @@ def mgr_snapshot_cmd(module, module_args, snapset_json):
             source_list,
             SNAPM_DEFAULT_SIZE_POLICY,
             boot=bootable,
+            revert_boot=revert_menu,
         )
         changed = True
     except snapm.SnapmError as snap_err:

@@ -252,6 +252,14 @@ support snapshot manager (snapm).  When set to true, and passed to the
 'snapshot' command, the snapshot created will have a corresponding boot
 entry.  The boot entry will be removed when the snapset is removed.
 
+## snapshot_lvm_revert_boot_menu
+
+Boolean - default is unset.  Only supported on operating systems that
+support snapshot manager (snapm).  When set to true, and passed to the
+'snapshot' command, the snapshot created will have a corresponding revert
+boot entry.  The revert boot entry will be removed when the snapset is 
+removed.
+
 ### snapshot_use_copr (EXPERIMENTAL)
 
 Boolean - default is unset - if you want to enable the copr repo to use the
