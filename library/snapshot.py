@@ -232,14 +232,12 @@ from ansible.module_utils.snapshot_lsr.validate import (
 
 logger = logging.getLogger("snapshot-role")
 
-use_snapm = use_snapshot_manager()
-
-
 __metaclass__ = type
 
 
 def snapshot_cmd_execute(cmd, module, module_args, snapset_dict, vg_include):
     cmd_result = None
+    use_snapm = use_snapshot_manager()
 
     if use_snapm:
         if cmd == SnapshotCommand.SNAPSHOT:
