@@ -445,7 +445,7 @@ def mgr_extend_cmd(module, module_args, snapset_json):
 
     # there are no LVs that require an extend operation, return OK.
     if len(source_list) == 0:
-        return {"return_code": rc, "errors": "source list emmpty", "changed": changed}
+        return {"return_code": rc, "errors": "source list empty", "changed": changed}
 
     try:
         manager.resize_snapshot_set(source_list, snapset_name)
@@ -513,7 +513,7 @@ def mgr_mount_cmd(module, module_args, snapset_json):
     if snapshot_set is None or len(snapshot_set) == 0:
         return {
             "return_code": SnapshotStatus.ERROR_MOUNT_FAILED,
-            "errors": "snnapshot not found:" + snapset_name,
+            "errors": "snapshot not found: " + snapset_name,
             "changed": False,
         }
 
@@ -546,7 +546,7 @@ def mgr_umount_cmd(module, module_args, snapset_json):
     if snapshot_set is None or len(snapshot_set) == 0:
         return {
             "return_code": SnapshotStatus.ERROR_MOUNT_FAILED,
-            "errors": "snnapshot not found:" + snapset_name,
+            "errors": "snapshot not found: " + snapset_name,
             "changed": False,
         }
 
