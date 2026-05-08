@@ -312,6 +312,75 @@ def lvm_is_thinpool(module, vg_name, lv_name):
         return SnapshotStatus.SNAPSHOT_OK, False
 
 
+def lvm_is_snapshot_valid(module, vg_name, lv_name):
+    """Check if a snapshot is valid and writable.
+
+    Returns (status_code, is_valid, message) where:
+    - status_code: SnapshotStatus code indicating if check succeeded
+    - is_valid: True if snapshot is valid and writable, False otherwise
+    - message: Error message if snapshot is invalid
+
+    LVM lv_attr positions:
+    - Position 0: Volume type (s = snapshot)
+    - Position 4: State ('a' = active, 'I' = Invalid snapshot,
+                         'm' = snapshot merge failed,
+                         'M' = suspended snapshot merge failed)
+    """
+    rc, lv_attr = lvm_get_attr(module, vg_name, lv_name)
+
+    if rc == LVM_NOTFOUND_RC:
+        return SnapshotStatus.SNAPSHOT_OK, False, "Snapshot not found"
+
+    if rc:
+        return SnapshotStatus.ERROR_LVS_FAILED, False, "Failed to get snapshot attributes"
+
+    if len(lv_attr) < 5:
+        return (
+            SnapshotStatus.ERROR_LVS_FAILED,
+            False,
+            "Invalid lv_attr length: " + str(len(lv_attr)),
+        )
+
+    state = lv_attr[4]
+
+    # Check for invalid states
+    if state == "I":
+        return (
+            SnapshotStatus.SNAPSHOT_OK,
+            False,
+            "Snapshot is invalid (state: I) - may have exceeded allocated space",
+        )
+    elif state in ("m", "M"):
+        return (
+            SnapshotStatus.SNAPSHOT_OK,
+            False,
+            "Snapshot merge has failed (state: " + state + ")",
+        )
+    elif state == "s":
+        return (
+            SnapshotStatus.SNAPSHOT_OK,
+            False,
+            "Snapshot is suspended - cannot be used",
+        )
+    elif state == "S":
+        return (
+            SnapshotStatus.SNAPSHOT_OK,
+            False,
+            "Snapshot is invalid and suspended",
+        )
+    elif state == "a":
+        # Active state - snapshot is valid
+        return SnapshotStatus.SNAPSHOT_OK, True, ""
+    else:
+        # Unknown state - be cautious and reject
+        return (
+            SnapshotStatus.SNAPSHOT_OK,
+            False,
+            "Snapshot has unknown state: " + state,
+        )
+
+
+
 def lvm_is_owned(lv_name, suffix):
     if suffix:
         suffix_str = suffix
@@ -421,6 +490,19 @@ def revert_lv(module, vg_name, snapshot_name, check_mode):
             return (
                 SnapshotStatus.ERROR_REVERT_FAILED,
                 "LV with name: " + vg_name + "/" + snapshot_name + " is not a snapshot",
+            )
+
+        # Check snapshot validity before attempting revert
+        rc, is_valid, message = lvm_is_snapshot_valid(module, vg_name, snapshot_name)
+        if rc != SnapshotStatus.SNAPSHOT_OK:
+            return (
+                SnapshotStatus.ERROR_VERIFY_COMMAND_FAILED,
+                "revert_lv: failed to check snapshot validity: " + message,
+            )
+        if not is_valid:
+            return (
+                SnapshotStatus.ERROR_REVERT_FAILED,
+                "Snapshot " + vg_name + "/" + snapshot_name + " is not valid: " + message,
             )
     else:
         return (

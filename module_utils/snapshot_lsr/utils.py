@@ -453,6 +453,24 @@ def mount_lv(
         if rc != SnapshotStatus.SNAPSHOT_OK:
             return rc, message, changed
 
+        # If mounting a snapshot (not origin), verify it's valid and writable
+        if not origin:
+            from ansible.module_utils.snapshot_lsr.lvm import lvm_is_snapshot_valid
+
+            rc, is_valid, val_message = lvm_is_snapshot_valid(module, vg_name, lv_to_mount)
+            if rc != SnapshotStatus.SNAPSHOT_OK:
+                return (
+                    SnapshotStatus.ERROR_VERIFY_COMMAND_FAILED,
+                    "mount_lv: failed to check snapshot validity: " + val_message,
+                    changed,
+                )
+            if not is_valid:
+                return (
+                    SnapshotStatus.ERROR_MOUNT_FAILED,
+                    "Snapshot " + vg_name + "/" + lv_to_mount + " is not valid: " + val_message,
+                    changed,
+                )
+
         blockdev = path_join(DEV_PREFIX, vg_name, lv_to_mount)
     else:
         mode = os.stat(blockdev).st_mode
