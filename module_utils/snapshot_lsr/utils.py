@@ -208,6 +208,32 @@ def umount_lv(module, umount_target, vg_name, lv_name, all_targets, check_mode):
         if rc != SnapshotStatus.SNAPSHOT_OK:
             return rc, message, changed
 
+        # Validate that the vg/lv matches the blockdev at the mount point
+        expected_blockdev = path_join(DEV_PREFIX, vg_name, lv_name)
+        mounted_dev = get_mounted_device(umount_target)
+
+        if mounted_dev:
+            # Resolve symlinks and compare canonical paths
+            try:
+                expected_canonical = os.path.realpath(expected_blockdev)
+                mounted_canonical = os.path.realpath(mounted_dev)
+
+                if expected_canonical != mounted_canonical:
+                    return (
+                        SnapshotStatus.ERROR_UMOUNT_FAILED,
+                        "Block device mismatch: mount point '{}' is mounted from '{}' "
+                        "but expected '{}' (vg: {}, lv: {})".format(
+                            umount_target, mounted_dev, expected_blockdev, vg_name, lv_name
+                        ),
+                        changed,
+                    )
+            except OSError as err:
+                return (
+                    SnapshotStatus.ERROR_UMOUNT_FAILED,
+                    "Failed to verify block device: {}".format(str(err)),
+                    changed,
+                )
+
     rc, message = umount(module, umount_target, all_targets, check_mode)
     changed = rc == SnapshotStatus.SNAPSHOT_OK
     if rc == SnapshotStatus.ERROR_UMOUNT_NOT_MOUNTED:
