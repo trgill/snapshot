@@ -1,0 +1,218 @@
+---
+- name: Test unmount_all with origin mounted at multiple locations
+  hosts: all
+  vars:
+    # only use vgs matching this pattern
+    snapshot_lvm_vg_include: "^test_"
+    test_disk_min_size: "1g"
+    test_disk_count: 3
+    test_storage_pools:
+      - name: test_vg_multi
+        disks: "{{ range(0, 3) | map('extract', unused_disks) | list }}"
+        volumes:
+          - name: multi_origin
+            size: "50%"
+            fs_type: xfs
+            mount_point: "{{ test_mnt_parent ~ '/origin_primary' }}"
+  tasks:
+    - name: Run tests
+      block:
+        - name: Setup
+          include_tasks: tasks/setup.yml
+
+        - name: Create mount point directories for multiple mounts
+          file:
+            path: "{{ item }}"
+            state: directory
+            mode: "0755"
+          loop:
+            - "{{ test_mnt_parent }}/origin_primary"
+            - "{{ test_mnt_parent }}/origin_secondary"
+            - "{{ test_mnt_parent }}/origin_tertiary"
+
+        # Mount the origin in the primary location (done by storage role)
+        # Now manually mount it in two additional locations
+        - name: Get the device path for the origin volume
+          set_fact:
+            origin_device: "/dev/test_vg_multi/multi_origin"
+
+        - name: Mount origin at secondary location
+          mount:
+            path: "{{ test_mnt_parent }}/origin_secondary"
+            src: "{{ origin_device }}"
+            fstype: xfs
+            opts: nouuid
+            state: mounted
+
+        - name: Mount origin at tertiary location
+          mount:
+            path: "{{ test_mnt_parent }}/origin_tertiary"
+            src: "{{ origin_device }}"
+            fstype: xfs
+            opts: nouuid
+            state: mounted
+
+        - name: Verify all three mount points are active
+          shell: |
+            set -euo pipefail
+            mount | grep "{{ origin_device }}" | wc -l
+          register: mount_count
+          changed_when: false
+
+        - name: Assert all three mount points exist
+          assert:
+            that:
+              - mount_count.stdout | int == 3
+            fail_msg: "Expected 3 mount points, found {{ mount_count.stdout }}"
+
+        - name: Display current mounts for debugging
+          shell: mount | grep "{{ origin_device }}"
+          register: current_mounts
+          changed_when: false
+
+        - name: Show mount points
+          debug:
+            var: current_mounts.stdout_lines
+
+        - name: Create a snapshot of the multi-mounted origin
+          include_tasks: tasks/run_role_with_clear_facts.yml
+          vars:
+            snapshot_lvm_percent_space_required: 20
+            snapshot_lvm_vg: test_vg_multi
+            snapshot_lvm_lv: multi_origin
+            snapshot_lvm_snapset_name: multi_snap
+            snapshot_lvm_action: snapshot
+
+        - name: Verify the snapshot was created
+          include_tasks: tasks/run_role_with_clear_facts.yml
+          vars:
+            snapshot_lvm_vg: test_vg_multi
+            snapshot_lvm_lv: multi_origin
+            snapshot_lvm_snapset_name: multi_snap
+            snapshot_lvm_verify_only: true
+            snapshot_lvm_action: check
+
+        # Test 1: Try to unmount without unmount_all flag - should fail or only unmount one
+        - name: Try to unmount primary mount point without unmount_all flag
+          include_tasks: tasks/run_role_with_clear_facts.yml
+          vars:
+            snapshot_lvm_snapset_name: multi_snap
+            snapshot_lvm_action: umount
+            snapshot_lvm_vg: test_vg_multi
+            snapshot_lvm_lv: multi_origin
+            snapshot_lvm_mountpoint: "{{ test_mnt_parent }}/origin_primary"
+          ignore_errors: true
+          register: umount_single_result
+
+        - name: Check how many mount points remain after single umount
+          shell: |
+            set -euo pipefail
+            mount | grep "{{ origin_device }}" | wc -l || echo "0"
+          register: mounts_after_single
+          changed_when: false
+
+        - name: Display mounts after single umount attempt
+          debug:
+            msg: "Mounts remaining: {{ mounts_after_single.stdout }}"
+
+        # Remount if it was unmounted
+        - name: Ensure all three mount points are restored for next test
+          mount:
+            path: "{{ item }}"
+            src: "{{ origin_device }}"
+            fstype: xfs
+            opts: nouuid
+            state: mounted
+          loop:
+            - "{{ test_mnt_parent }}/origin_primary"
+            - "{{ test_mnt_parent }}/origin_secondary"
+            - "{{ test_mnt_parent }}/origin_tertiary"
+
+        - name: Verify all three mount points are restored
+          shell: |
+            set -euo pipefail
+            mount | grep "{{ origin_device }}" | wc -l
+          register: mount_count_restored
+          changed_when: false
+
+        - name: Assert all three mount points are back
+          assert:
+            that:
+              - mount_count_restored.stdout | int == 3
+            fail_msg: "Expected 3 mount points, found {{ mount_count_restored.stdout }}"
+
+        # Test 2: Use unmount_all flag to unmount all instances
+        - name: Unmount all mount points using snapshot_lvm_unmount_all flag
+          include_tasks: tasks/run_role_with_clear_facts.yml
+          vars:
+            snapshot_lvm_snapset_name: multi_snap
+            snapshot_lvm_action: umount
+            snapshot_lvm_vg: test_vg_multi
+            snapshot_lvm_lv: multi_origin
+            snapshot_lvm_mountpoint: "{{ test_mnt_parent }}/origin_primary"
+            snapshot_lvm_unmount_all: true
+
+        - name: Assert unmount_all operation changed system state
+          assert:
+            that: snapshot_cmd["changed"]
+            fail_msg: "Unmount all should have changed the system state"
+
+        - name: Verify ALL mount points are unmounted
+          shell: |
+            set -euo pipefail
+            mount | grep "{{ origin_device }}" | wc -l || echo "0"
+          register: mounts_after_all
+          changed_when: false
+
+        - name: Assert no mount points remain
+          assert:
+            that:
+              - mounts_after_all.stdout | int == 0
+            fail_msg: "Expected 0 mount points after unmount_all, found {{ mounts_after_all.stdout }}"
+
+        - name: Verify unmount_all is idempotent
+          include_tasks: tasks/run_role_with_clear_facts.yml
+          vars:
+            snapshot_lvm_snapset_name: multi_snap
+            snapshot_lvm_action: umount
+            snapshot_lvm_vg: test_vg_multi
+            snapshot_lvm_lv: multi_origin
+            snapshot_lvm_mountpoint: "{{ test_mnt_parent }}/origin_primary"
+            snapshot_lvm_unmount_all: true
+
+        - name: Assert no changes on second unmount_all
+          assert:
+            that: not snapshot_cmd["changed"]
+            fail_msg: "Second unmount_all should not change anything"
+
+        - name: Remove the snapshot
+          include_tasks: tasks/run_role_with_clear_facts.yml
+          vars:
+            snapshot_lvm_snapset_name: multi_snap
+            snapshot_lvm_action: remove
+            snapshot_lvm_vg: test_vg_multi
+            snapshot_lvm_lv: multi_origin
+
+        - name: Verify snapshot removal
+          include_tasks: tasks/run_role_with_clear_facts.yml
+          vars:
+            snapshot_lvm_snapset_name: multi_snap
+            snapshot_lvm_verify_only: true
+            snapshot_lvm_action: remove
+            snapshot_lvm_vg: test_vg_multi
+            snapshot_lvm_lv: multi_origin
+
+      always:
+        - name: Ensure all mount points are unmounted in cleanup
+          mount:
+            path: "{{ item }}"
+            state: absent
+          loop:
+            - "{{ test_mnt_parent }}/origin_primary"
+            - "{{ test_mnt_parent }}/origin_secondary"
+            - "{{ test_mnt_parent }}/origin_tertiary"
+          ignore_errors: true
+
+        - name: Cleanup
+          include_tasks: tasks/cleanup.yml
+          tags: tests::cleanup
