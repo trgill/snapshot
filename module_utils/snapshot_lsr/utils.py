@@ -17,6 +17,7 @@ from ansible.module_utils.snapshot_lsr.lvm_utils import (
     get_mounted_device,
     verify_source_lvs_exist,
     lvm_get_vg_lv_from_devpath,
+    lvm_lv_exists,
 )
 
 DEV_PREFIX = "/dev"
@@ -279,6 +280,8 @@ def mount_snapshot_set(
     snapm=False,
     snapset=None,
 ):
+    from ansible.module_utils.snapshot_lsr.lvm import lvm_is_snapshot
+
     snapset_name = snapset_json["name"]
     volume_list = snapset_json["volumes"]
 
@@ -323,6 +326,47 @@ def mount_snapshot_set(
                     return rc, message, changed
             else:
                 lv_to_check = lvm_get_snapshot_name(lv_name, snapset_name)
+
+            # Verify that the snapshot volume exists and is actually a snapshot
+            rc, _vg_exists, lv_exists = lvm_lv_exists(module, vg_name, lv_to_check)
+            if rc != SnapshotStatus.SNAPSHOT_OK:
+                return (
+                    SnapshotStatus.ERROR_VERIFY_COMMAND_FAILED,
+                    "mount_snapshot_set: failed to check if snapshot exists: "
+                    + vg_name
+                    + "/"
+                    + lv_to_check,
+                    changed,
+                )
+            if not lv_exists:
+                return (
+                    SnapshotStatus.ERROR_LV_NOTFOUND,
+                    "mount_snapshot_set: snapshot not found: "
+                    + vg_name
+                    + "/"
+                    + lv_to_check,
+                    changed,
+                )
+
+            rc, is_snapshot = lvm_is_snapshot(module, vg_name, lv_to_check)
+            if rc != SnapshotStatus.SNAPSHOT_OK:
+                return (
+                    SnapshotStatus.ERROR_VERIFY_COMMAND_FAILED,
+                    "mount_snapshot_set: failed to verify if volume is a snapshot: "
+                    + vg_name
+                    + "/"
+                    + lv_to_check,
+                    changed,
+                )
+            if not is_snapshot:
+                return (
+                    SnapshotStatus.ERROR_VERIFY_NOTSNAPSHOT,
+                    "mount_snapshot_set: volume is not a snapshot: "
+                    + vg_name
+                    + "/"
+                    + lv_to_check,
+                    changed,
+                )
 
         blockdev = path_join(DEV_PREFIX, vg_name, lv_to_check)
 
