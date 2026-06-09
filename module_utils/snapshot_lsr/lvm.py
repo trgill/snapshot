@@ -820,6 +820,49 @@ def revert_snapshot_set(module, snapset_json, check_mode):
     volume_list = snapset_json["volumes"]
     logger.info("revert snapsset : %s", snapset_name)
 
+    # Verify all snapshots exist and are snapshots before attempting to revert
+    for list_item in volume_list:
+        vg = list_item["vg"]
+        lv = list_item["lv"]
+        snapshot_name = lvm_get_snapshot_name(lv, snapset_name)
+
+        rc, _vg_exists, lv_exists = lvm_lv_exists(module, vg, snapshot_name)
+        if rc != SnapshotStatus.SNAPSHOT_OK:
+            return (
+                SnapshotStatus.ERROR_VERIFY_COMMAND_FAILED,
+                "revert_snapshot_set: failed to check if snapshot exists: "
+                + vg
+                + "/"
+                + snapshot_name,
+                False,
+            )
+        if not lv_exists:
+            return (
+                SnapshotStatus.ERROR_LV_NOTFOUND,
+                "revert_snapshot_set: snapshot not found: " + vg + "/" + snapshot_name,
+                False,
+            )
+
+        rc, is_snapshot = lvm_is_snapshot(module, vg, snapshot_name)
+        if rc != SnapshotStatus.SNAPSHOT_OK:
+            return (
+                SnapshotStatus.ERROR_VERIFY_COMMAND_FAILED,
+                "revert_snapshot_set: failed to verify if volume is a snapshot: "
+                + vg
+                + "/"
+                + snapshot_name,
+                False,
+            )
+        if not is_snapshot:
+            return (
+                SnapshotStatus.ERROR_VERIFY_NOTSNAPSHOT,
+                "revert_snapshot_set: volume is not a snapshot: "
+                + vg
+                + "/"
+                + snapshot_name,
+                False,
+            )
+
     changed = False
     for list_item in volume_list:
         vg = list_item["vg"]
