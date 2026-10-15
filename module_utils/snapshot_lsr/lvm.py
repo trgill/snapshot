@@ -821,6 +821,38 @@ def revert_snapshot_set(module, snapset_json, check_mode):
     logger.info("revert snapsset : %s", snapset_name)
 
     changed = False
+
+    # check to make sure the set is revertable before attempting to revert.
+    # lvconvert defers the merge to the next activation when the origin or
+    # the snapshot is open, and reports success for a merge that has not
+    # happened, which leaves the set half reverted.
+    for list_item in volume_list:
+        vg = list_item["vg"]
+        lv = list_item["lv"]
+        snapshot_name = lvm_get_snapshot_name(lv, snapset_name)
+
+        rc, vg_exists, lv_exists = lvm_lv_exists(module, vg, snapshot_name)
+
+        if rc != SnapshotStatus.SNAPSHOT_OK:
+            return rc, "failed to get LV status", changed
+
+        # if there is no snapshot, continue (idempotent)
+        if not vg_exists or not lv_exists:
+            continue
+
+        for name in [snapshot_name, lv]:
+            rc, in_use = lvm_is_inuse(module, vg, name)
+
+            if rc != SnapshotStatus.SNAPSHOT_OK:
+                return rc, "failed to lvm_is_inuse status", changed
+
+            if in_use:
+                return (
+                    SnapshotStatus.ERROR_REVERT_FAILED_INUSE,
+                    "volume is in use: " + vg + "/" + name,
+                    changed,
+                )
+
     for list_item in volume_list:
         vg = list_item["vg"]
         lv = list_item["lv"]

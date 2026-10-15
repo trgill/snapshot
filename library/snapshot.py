@@ -259,7 +259,7 @@ def snapshot_cmd_execute(cmd, module, module_args, snapset_dict, vg_include):
         elif cmd == SnapshotCommand.REMOVE:
             cmd_result = mgr_remove_cmd(module_args, snapset_dict)
         elif cmd == SnapshotCommand.REVERT:
-            cmd_result = mgr_revert_cmd(module_args, snapset_dict)
+            cmd_result = mgr_revert_cmd(module, module_args, snapset_dict)
         elif cmd == SnapshotCommand.EXTEND:
             cmd_result = mgr_extend_cmd(module, module_args, snapset_dict)
         elif cmd == SnapshotCommand.LIST:
