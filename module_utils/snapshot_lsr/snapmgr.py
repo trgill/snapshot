@@ -11,6 +11,7 @@ from ansible.module_utils.snapshot_lsr.lvm import (
     extend_check_size,
     get_space_needed,
     get_current_space_state,
+    lvm_is_inuse,
 )
 from ansible.module_utils.snapshot_lsr.utils import (
     DEV_PREFIX,
@@ -546,6 +547,10 @@ def mgr_extend_cmd(module, module_args, snapset_json):
         message = "".join(snap_err.args)
         if message == "lvresize failed with: No size change":
             rc = SnapshotStatus.SNAPSHOT_OK
+        else:
+            # without this the caller is told the extend succeeded, and the
+            # only sign that it did not is the error text
+            rc = SnapshotStatus.ERROR_EXTEND_FAILED
     # Snapshot Manager should only raise SnapmError - there is a bug if an
     # Exception is raised
     except Exception as err:
@@ -555,9 +560,44 @@ def mgr_extend_cmd(module, module_args, snapset_json):
     return {"return_code": rc, "errors": message, "changed": changed}
 
 
-def mgr_revert_cmd(module_args, snapset_json):
+def mgr_revert_verify_not_inuse(module, manager, snapset_name):
+    snapshot_set = manager.find_snapshot_sets(snapm.Selection(name=snapset_name))
+
+    if len(snapshot_set) == 0:
+        return SnapshotStatus.SNAPSHOT_OK, ""
+
+    for snapshot in snapshot_set[0].snapshots:
+
+        rc, message, origin_vg_name, origin_lv_name = lvm_get_vg_lv_from_devpath(
+            module, snapshot.origin
+        )
+
+        if rc != SnapshotStatus.SNAPSHOT_OK:
+            return rc, message
+
+        # the merge is deferred when either side is open, so both have to be
+        # free before the revert is worth starting
+        for vg_name, lv_name in [
+            (snapshot.vg_name, snapshot.lv_name),
+            (origin_vg_name, origin_lv_name),
+        ]:
+            rc, in_use = lvm_is_inuse(module, vg_name, lv_name)
+
+            if rc != SnapshotStatus.SNAPSHOT_OK:
+                return rc, "failed to lvm_is_inuse status"
+
+            if in_use:
+                return (
+                    SnapshotStatus.ERROR_REVERT_FAILED_INUSE,
+                    "volume is in use: " + vg_name + "/" + lv_name,
+                )
+
+    return SnapshotStatus.SNAPSHOT_OK, ""
+
+
+def mgr_revert_cmd(module, module_args, snapset_json):
     snapset_name = snapset_json["name"]
-    logger.info("extend snapsset : %s", snapset_name)
+    logger.info("revert snapsset : %s", snapset_name)
     changed = False
     rc = SnapshotStatus.SNAPSHOT_OK
     message = ""
@@ -572,6 +612,14 @@ def mgr_revert_cmd(module_args, snapset_json):
         }
 
     manager = snap_manager.Manager()
+
+    # snapm reports the revert as done even when the merge was only scheduled,
+    # so reject the request rather than report a revert that has not happened
+    rc, message = mgr_revert_verify_not_inuse(module, manager, snapset_name)
+
+    if rc != SnapshotStatus.SNAPSHOT_OK:
+        return {"return_code": rc, "errors": message, "changed": changed}
+
     try:
         manager.revert_snapshot_set(snapset_name)
         changed = True
@@ -579,6 +627,7 @@ def mgr_revert_cmd(module_args, snapset_json):
         # Ignore not found errors - the snapset has already benn reverted
         if not isinstance(snap_err, snapm.SnapmNotFoundError):
             message = str(snap_err)
+            rc = SnapshotStatus.ERROR_REVERT_FAILED
     # Snapshot Manager should only raise SnapmError - there is a bug if an
     # Exception is raised
     except Exception as err:
