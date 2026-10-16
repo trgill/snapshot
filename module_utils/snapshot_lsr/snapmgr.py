@@ -490,7 +490,7 @@ def mgr_extend_verify_snapshot_set(module, manager, snapset_name, volume_list):
             return (
                 SnapshotStatus.ERROR_EXTEND_VERIFY_FAILED,
                 "verify failed due to insufficient space for: "
-                + origin_lv_name
+                + origin_vg_name
                 + "/"
                 + origin_lv_name,
                 False,
